@@ -50,6 +50,41 @@ var prefs = {
   "date_range": ee.DateRange(globalStart, globalEnd)
 }
 
+var classificationTable = {
+  'water': {
+    'mapping': 1,
+    'vectors': null
+  },
+  'submerged': {
+    'mapping': 2,
+    'vectors': null
+  },
+  'emergent': {
+    'mapping': 3,
+    'vectors': null
+  },
+  'hyacinth': {
+    'mapping': 4,
+    'vectors': null
+  },
+  'primrose': {
+    'mapping': 5,
+    'vectors': null
+  },
+  'riparian': {
+    'mapping': 6,
+    'vectors': null
+  },
+  'NPV': {
+    'mapping': 7,
+    'vectors': null
+  },
+  'soil': {
+    'mapping': 8,
+    'vectors': null
+  }
+}
+
 var sites = {
   'winterIsland': {
     'name': 'Winter Island',
@@ -256,6 +291,21 @@ var runProcessing = function() {
     maxPixels: 10e8                 // Allow reduction of more pixels than is allowed by default
   });
   print("[DEBUG] Calculated vector classification FeatureCollection: ", vectorClassFeatureCollection);
+
+  // Separate vectors into class-specific FeatureCollections
+  for (var classKey in classificationTable) {
+    var classValueObject = classificationTable[classKey];  // For ease of using the value object
+
+    // Specifically want to find all features with a class property matching the mapping value
+    var associatedFeatures = vectorClassFeatureCollection.filter(
+      ee.Filter.eq('class', classValueObject.mapping));
+
+    // Add filtered FeatureCollection to classification table
+    classValueObject.vectors = associatedFeatures;
+
+    // [DEBUG] Print out features associated with the class
+    print("[DEBUG] Associated Features for ", classKey, classValueObject.vectors);
+  }
   
   // Create a color table for the charts & visualization
   var color_table = {
