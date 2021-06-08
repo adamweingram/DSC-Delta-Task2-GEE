@@ -200,8 +200,6 @@ var runProcessingButton = ui.Button({
 });
 runPanel.add(runProcessingButton);
 
-// ### Create Date Selector Widgets ###
-
 // Run this function on a change of the dateSlider.
 var showMosaic = function(range) {
   
