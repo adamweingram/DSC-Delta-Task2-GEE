@@ -215,14 +215,14 @@ var runProcessingButton = ui.Button({
 runPanel.add(runProcessingButton);
 
 // Preview Panel Items
-var previewOpationsPanel = ui.Panel({
+var previewOptionsPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('vertical')
 });
-mainPanel.add(previewOpationsPanel);
+mainPanel.add(previewOptionsPanel);
 
 var previewPanelLabel = ui.Label('Preview Options');
 previewPanelLabel.style().set({fontSize: '20px'});
-previewOpationsPanel.add(previewPanelLabel);
+previewOptionsPanel.add(previewPanelLabel);
 
 var indexSelectorDropdown = ui.Select({
   items: Object.keys(indices),
@@ -237,7 +237,7 @@ var indexSelectorDropdown = ui.Select({
   },
   placeholder: "Choose an index preview layer..."
 });
-previewOpationsPanel.add(indexSelectorDropdown);
+previewOptionsPanel.add(indexSelectorDropdown);
 
 // ### UI Data Manipulation Elements ###
 
