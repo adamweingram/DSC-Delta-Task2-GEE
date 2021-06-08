@@ -95,6 +95,20 @@ var sites = {
 }
 var globalSite = null;
 
+var indices = {
+  'NDVI': {},
+  'NDAVI': {},
+  'WAVI': {}
+}
+var globalIndex = null;
+
+// ### Internal State and Storage ###
+// [TODO] Migrate all global variables to internal processing state object
+var internalProcessingState = {
+  'processingHasBeenRun': false,
+  'indexOutputs': null
+};
+
 // ### Create UI Layout ###
 var mainPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('vertical'),
@@ -200,6 +214,31 @@ var runProcessingButton = ui.Button({
 });
 runPanel.add(runProcessingButton);
 
+// Preview Panel Items
+var previewOpationsPanel = ui.Panel({
+  layout: ui.Panel.Layout.flow('vertical')
+});
+mainPanel.add(previewOpationsPanel);
+
+var previewPanelLabel = ui.Label('Preview Options');
+previewPanelLabel.style().set({fontSize: '20px'});
+previewOpationsPanel.add(previewPanelLabel);
+
+var indexSelectorDropdown = ui.Select({
+  items: Object.keys(indices),
+  onChange: function(key) {
+    globalIndex = key;
+    print("[DEBUG] Preview index changed by user: ", globalIndex);
+
+    // Show index outputs only if processing has already been run
+    if (internalProcessingState.processingHasBeenRun) {
+      showIndexOutput();
+    }
+  },
+  placeholder: "Choose an index preview layer..."
+});
+previewOpationsPanel.add(indexSelectorDropdown);
+
 // ### UI Data Manipulation Elements ###
 
 // Run this function on a change of the dateSlider.
@@ -263,6 +302,16 @@ var endDateRange = prefs.date_range.evaluate(function(range) {
   endDatePanel.add(endDateSlider.setValue(globalNow));
 });
 
+var showIndexOutput = function() {
+  // Compute Preview Mosaic
+  var mosaic = internalProcessingState.indexOutputs.mosaic();
+  
+  // Display Preview Layer
+  var visParams = {bands: [globalIndex], max: 1, min: -1};
+  var layer = ui.Map.Layer(mosaic, visParams, 'Index Preview');
+  Map.layers().set(1, layer);
+}
+
 // ### Configure and Add UI ###
 // ui.root.clear();
 ui.root.add(mainPanel);
@@ -310,6 +359,9 @@ var runProcessing = function() {
     print("[DEBUG] Associated Features for ", classKey, classValueObject.vectors);
   }
 
+  // Save processing complete state
+  internalProcessingState.processingHasBeenRun = true;
+
   // ### Create and Display Charts ###
   
   // Create a color table for the charts & visualization
@@ -347,12 +399,10 @@ var runProcessing = function() {
     series: color_table
   })
   print(testChart)
-  
-  // Compute Preview Mosaic
-  var mosaic = indexOutputs.mosaic();
-  
-  // Display Preview Layer
-  var visParams = {bands: ["NDVI", "NDAVI", "WAVI"], max: 1, min: -1};
-  var layer = ui.Map.Layer(mosaic, visParams, 'Index Preview');
-  Map.layers().set(1, layer);
+
+  // Save indexOutput in global state
+  internalProcessingState.indexOutputs = indexOutputs;
+
+  // Show index outputs
+  showIndexOutput();
 }
