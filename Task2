@@ -200,6 +200,8 @@ var runProcessingButton = ui.Button({
 });
 runPanel.add(runProcessingButton);
 
+// ### UI Data Manipulation Elements ###
+
 // Run this function on a change of the dateSlider.
 var showMosaic = function(range) {
   
