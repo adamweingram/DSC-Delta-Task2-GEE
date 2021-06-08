@@ -138,6 +138,7 @@ var endDatePanel = ui.Panel({
 datesSelectorPanel.add(endDatePanel);
 endDatePanel.add(ui.Label('End Date: '));
 
+// Class Map Items
 var classificationPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('vertical')
 });
@@ -157,6 +158,7 @@ var classificationSelect = ui.Select({
 });
 classificationPanel.add(classificationSelect);
 
+// Site Selection Items
 var siteSelectorPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('vertical')
 });
@@ -180,6 +182,7 @@ var siteSelectorDropdown = ui.Select({
 });
 siteSelectorPanel.add(siteSelectorDropdown);
 
+// Run Panel Items
 var runPanel = ui.Panel({
   layout: ui.Panel.Layout.flow('vertical')
 });
