@@ -306,6 +306,8 @@ var runProcessing = function() {
     // [DEBUG] Print out features associated with the class
     print("[DEBUG] Associated Features for ", classKey, classValueObject.vectors);
   }
+
+  // ### Create and Display Charts ###
   
   // Create a color table for the charts & visualization
   var color_table = {
