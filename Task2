@@ -47,7 +47,8 @@ var prefs = {
   "preview_green": "TCI_G",
   "preview_blue": "TCI_B",
   "l_correction_factor": 0.5,
-  "date_range": ee.DateRange(globalStart, globalEnd)
+  "date_range": ee.DateRange(globalStart, globalEnd),
+  "previewDateSliderGranularity": 10  // Aligns with Sentinel-2 "max" revisit time (~10 days)
 }
 
 var classificationTable = {
@@ -105,6 +106,9 @@ var globalIndex = null;
 // ### Internal State and Storage ###
 // [TODO] Migrate all global variables to internal processing state object
 var internalProcessingState = {
+  'previewState': {
+    'tciPreviewDateRange': prefs.date_range
+  },
   'processingHasBeenRun': false,
   'indexOutputs': null
 };
@@ -242,18 +246,20 @@ previewOptionsPanel.add(indexSelectorDropdown);
 // ### UI Data Manipulation Elements ###
 
 // Run this function on a change of the dateSlider.
-var showMosaic = function(range) {
-  
+var showMosaic = function() {
+  var baseImageCollection = ee.ImageCollection('COPERNICUS/S2_SR').filterBounds(focusArea);
+
   // Re-run filters, etc.
-  primaryImageCollection = ee.ImageCollection('COPERNICUS/S2_SR')
-                            .filterBounds(focusArea)
-                            .filter(ee.Filter.date(range.start(), range.end()))
-                            .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', prefs.ccLimit));
-                            
-  print(primaryImageCollection)
+  primaryImageCollection = baseImageCollection.filter(ee.Filter.date(prefs.date_range.start(), prefs.date_range.end())).filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', prefs.ccLimit));
+  print("[DEBUG] Post-filter ImageCollection: ", primaryImageCollection);
   
+  // Add additional filters SPECIFICALLY for preview layer purposes
+  var previewRange = internalProcessingState.previewState.tciPreviewDateRange;
+  var previewImageCollection = baseImageCollection.filter(ee.Filter.date(previewRange.start(), previewRange.end()));
+  print("[DEBUG] Post-filter PREVIEW ImageCollection: ", previewImageCollection);
+
   // Compute Mosaic
-  var mosaic = primaryImageCollection.mosaic();
+  var mosaic = previewImageCollection.mosaic();
   
   // Display Preview Layer
   var visParams = {bands: [prefs.preview_red, prefs.preview_green, prefs.preview_blue], max: 256};
@@ -264,20 +270,42 @@ var showMosaic = function(range) {
 var changeStart = function(range) {
   prefs.date_range = ee.DateRange(range.start(), prefs.date_range.end());
   
-  showMosaic(prefs.date_range);
+  showMosaic();
   
-  print(prefs.date_range);
+  print("[DEBUG] Start filter date changed: ", prefs.date_range);
+
+  // Check if preview date range is within chosen range
+  if (internalProcessingState.previewState.tciPreviewDateRange === null || !range.contains(internalProcessingState.previewState.tciPreviewDateRange)) {
+    internalProcessingState.previewState.tciPreviewDateRange = range;
+    previewDateSlider.setValue(range.end());
+  }
 }
 
 var changeEnd = function(range) {
   prefs.date_range = ee.DateRange(prefs.date_range.start(), range.end());
   
-  showMosaic(prefs.date_range);
+  showMosaic();
   
-  print(prefs.date_range);
+  print("[DEBUG] End filter date changed: ", prefs.date_range);
+
+  // Check if preview date range is within chosen range
+  if (internalProcessingState.previewState.tciPreviewDateRange === null || !range.contains(internalProcessingState.previewState.tciPreviewDateRange)) {
+    internalProcessingState.previewState.tciPreviewDateRange = range;
+    previewDateSlider.setValue(range.end());
+  }
 }
 
-// Asynchronously compute the date range and show the slider.
+var changePreviewDateRange = function(range) {
+  print("[DEBUG] Preview date range changed: ", range);
+
+  // Save new range to internal state
+  internalProcessingState.previewState.tciPreviewDateRange = range;
+
+  // Show the preview mosaic and re-run filters
+  showMosaic();
+}
+
+// Asynchronously compute the date filter range and show the date filter slider.
 var startDateRange = prefs.date_range.evaluate(function(range) {
   var startDateSlider = ui.DateSlider({
     start: range['dates'][0],
@@ -300,6 +328,18 @@ var endDateRange = prefs.date_range.evaluate(function(range) {
     onChange: changeEnd
   });
   endDatePanel.add(endDateSlider.setValue(globalNow));
+});
+
+var previewDateRange = prefs.date_range.evaluate(function(range) {
+  var previewDateSlider = ui.DateSlider({
+    start: range['dates'][0],
+    end: range['dates'][1],
+    value: null,
+    period: prefs.previewDateSliderGranularity,
+    style: {stretch: 'horizontal'},
+    onChange: changePreviewDateRange
+  });
+  previewOptionsPanel.add(previewDateSlider.setValue(globalNow));
 });
 
 var showIndexOutput = function() {
