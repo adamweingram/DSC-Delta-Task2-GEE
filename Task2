@@ -254,21 +254,16 @@ previewOptionsPanel.add(indexSelectorDropdown);
 
 // Run this function on a change of the dateSlider.
 var showMosaic = function () {
-  var baseImageCollection = ee
-    .ImageCollection("COPERNICUS/S2_SR")
-    .filterBounds(focusArea);
+  // Redefined base image collectoin for preview
+  var previewImageCollection = primaryImageCollection
+    .filterBounds(focusArea)
+    .filter(
+      ee.Filter.date(
+        internalProcessingState.previewState.tciPreviewDateRange.start(),
+        internalProcessingState.previewState.tciPreviewDateRange.end()
+      )
+    );
 
-  // Re-run filters, etc.
-  primaryImageCollection = baseImageCollection
-    .filter(ee.Filter.date(prefs.date_range.start(), prefs.date_range.end()))
-    .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", prefs.ccLimit));
-  print("[DEBUG] Post-filter ImageCollection: ", primaryImageCollection);
-
-  // Add additional filters SPECIFICALLY for preview layer purposes
-  var previewRange = internalProcessingState.previewState.tciPreviewDateRange;
-  var previewImageCollection = baseImageCollection.filter(
-    ee.Filter.date(previewRange.start(), previewRange.end())
-  );
   print(
     "[DEBUG] Post-filter PREVIEW ImageCollection: ",
     previewImageCollection
@@ -396,8 +391,15 @@ ui.root.add(mainPanel);
 
 // ### Run Processing ###
 var runProcessing = function () {
+  // Run filters, etc.
+  var workingImageCollection = primaryImageCollection
+    .filterBounds(focusArea)
+    .filter(ee.Filter.date(prefs.date_range.start(), prefs.date_range.end()))
+    .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", prefs.ccLimit));
+  print("[DEBUG] Post-filter ImageCollection: ", workingImageCollection);
+
   // Mask Clouds
-  var cloudMasked = primaryImageCollection.map(IndicesFunc.maskS2clouds);
+  var cloudMasked = workingImageCollection.map(IndicesFunc.maskS2clouds);
 
   // [DEBUG] Print cloudMasked ImageCollection
   print("[DEBUG] Cloud Masked ImageCollection: ", cloudMasked);
