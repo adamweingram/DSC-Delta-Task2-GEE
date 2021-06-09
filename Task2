@@ -24,213 +24,220 @@ var classifiedMaps = {
 var globalClassMap = null;
 
 // Import external scripts
-var IndicesFunc = require('users/eorsgee/DSC-Delta-Task2:IndexFunctions');
+var IndicesFunc = require("users/eorsgee/DSC-Delta-Task2:IndexFunctions");
 
 // Import baseline ImageCollection
-var primaryImageCollection = ee.ImageCollection('COPERNICUS/S2_SR');
+var primaryImageCollection = ee.ImageCollection("COPERNICUS/S2_SR");
 
 // Use the start of the collection and now to bound the slider.
-var globalStart = ee.Image(primaryImageCollection.first()).date().get('year').format();
+var globalStart = ee.Image(primaryImageCollection.first())
+  .date()
+  .get("year")
+  .format();
 var globalNow = Date.now();
 var globalEnd = ee.Date(globalNow).format();
 
 // ### Initial Script Preferences ###
 // Note: Some of these are modified by UI widgets!
 var prefs = {
-  "tile": '10SFH',
-  "ccLimit": 20,
-  "index_nir": "B8",
-  "index_red": "B4",
-  "index_green": "B3",
-  "index_blue": "B2",
-  "preview_red": "TCI_R",
-  "preview_green": "TCI_G",
-  "preview_blue": "TCI_B",
-  "l_correction_factor": 0.5,
-  "date_range": ee.DateRange(globalStart, globalEnd),
-  "previewDateSliderGranularity": 10  // Aligns with Sentinel-2 "max" revisit time (~10 days)
-}
+  tile: "10SFH",
+  ccLimit: 20,
+  index_nir: "B8",
+  index_red: "B4",
+  index_green: "B3",
+  index_blue: "B2",
+  preview_red: "TCI_R",
+  preview_green: "TCI_G",
+  preview_blue: "TCI_B",
+  l_correction_factor: 0.5,
+  date_range: ee.DateRange(globalStart, globalEnd),
+  previewDateSliderGranularity: 10, // Aligns with Sentinel-2 "max" revisit time (~10 days)
+};
 
 var classificationTable = {
-  'water': {
-    'mapping': 1,
-    'vectors': null
+  water: {
+    mapping: 1,
+    vectors: null,
   },
-  'submerged': {
-    'mapping': 2,
-    'vectors': null
+  submerged: {
+    mapping: 2,
+    vectors: null,
   },
-  'emergent': {
-    'mapping': 3,
-    'vectors': null
+  emergent: {
+    mapping: 3,
+    vectors: null,
   },
-  'hyacinth': {
-    'mapping': 4,
-    'vectors': null
+  hyacinth: {
+    mapping: 4,
+    vectors: null,
   },
-  'primrose': {
-    'mapping': 5,
-    'vectors': null
+  primrose: {
+    mapping: 5,
+    vectors: null,
   },
-  'riparian': {
-    'mapping': 6,
-    'vectors': null
+  riparian: {
+    mapping: 6,
+    vectors: null,
   },
-  'NPV': {
-    'mapping': 7,
-    'vectors': null
+  NPV: {
+    mapping: 7,
+    vectors: null,
   },
-  'soil': {
-    'mapping': 8,
-    'vectors': null
-  }
-}
+  soil: {
+    mapping: 8,
+    vectors: null,
+  },
+};
 
 var sites = {
-  'winterIsland': {
-    'name': 'Winter Island',
-    'location': ee.Geometry.Point([-121.84910943096135, 38.043111416848646]),
-    'geometry': winterIslandPolygon,
-    'zoom': 14
-  }
-}
+  winterIsland: {
+    name: "Winter Island",
+    location: ee.Geometry.Point([-121.84910943096135, 38.043111416848646]),
+    geometry: winterIslandPolygon,
+    zoom: 14,
+  },
+};
 var globalSite = null;
 
 var indices = {
-  'NDVI': {},
-  'NDAVI': {},
-  'WAVI': {}
-}
+  NDVI: {},
+  NDAVI: {},
+  WAVI: {},
+};
 var globalIndex = null;
 
 // ### Internal State and Storage ###
 // [TODO] Migrate all global variables to internal processing state object
 var internalProcessingState = {
-  'previewState': {
-    'tciPreviewDateRange': prefs.date_range
+  previewState: {
+    tciPreviewDateRange: prefs.date_range,
   },
-  'processingHasBeenRun': false,
-  'indexOutputs': null
+  processingHasBeenRun: false,
+  indexOutputs: null,
 };
 
 // ### Create UI Layout ###
 var mainPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical'),
-  style: {width: '300px'}
+  layout: ui.Panel.Layout.flow("vertical"),
+  style: { width: "300px" },
 });
 
 // Cloud Filter Items
 var cloudFilterPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(cloudFilterPanel);
 
-var cloudFilterLabel = ui.Label('Cloud Cover Filter (%)');
-cloudFilterLabel.style().set({fontSize: '20px'});
+var cloudFilterLabel = ui.Label("Cloud Cover Filter (%)");
+cloudFilterLabel.style().set({ fontSize: "20px" });
 cloudFilterPanel.add(cloudFilterLabel);
 
-var cloudFilterSlider = ui.Slider(0, 100, prefs.ccLimit, 1, function(value) {
+var cloudFilterSlider = ui.Slider(0, 100, prefs.ccLimit, 1, function (value) {
   prefs.ccLimit = value;
 });
-cloudFilterSlider.style().set({stretch: 'horizontal'});
+cloudFilterSlider.style().set({ stretch: "horizontal" });
 cloudFilterPanel.add(cloudFilterSlider);
 
 // Date Filter Items
 var datesSelectorPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(datesSelectorPanel);
-var dateSelectorLabel = ui.Label('Date Filter Selector');
-dateSelectorLabel.style().set({fontSize: '20px'});
+var dateSelectorLabel = ui.Label("Date Filter Selector");
+dateSelectorLabel.style().set({ fontSize: "20px" });
 datesSelectorPanel.add(dateSelectorLabel);
 
 var startDatePanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('horizontal')
+  layout: ui.Panel.Layout.flow("horizontal"),
 });
 datesSelectorPanel.add(startDatePanel);
-startDatePanel.add(ui.Label('Start Date: '));
+startDatePanel.add(ui.Label("Start Date: "));
 
 var endDatePanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('horizontal')
+  layout: ui.Panel.Layout.flow("horizontal"),
 });
 datesSelectorPanel.add(endDatePanel);
-endDatePanel.add(ui.Label('End Date: '));
+endDatePanel.add(ui.Label("End Date: "));
 
 // Class Map Items
 var classificationPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(classificationPanel);
-var classificationLabel = ui.Label('Classification Maps');
-classificationLabel.style().set({fontSize: '20px'});
+var classificationLabel = ui.Label("Classification Maps");
+classificationLabel.style().set({ fontSize: "20px" });
 classificationPanel.add(classificationLabel);
 
 var classificationSelect = ui.Select({
   items: Object.keys(classifiedMaps),
-  onChange: function(key) {
+  onChange: function (key) {
     // Change the global classification map
     globalClassMap = classifiedMaps[key];
     print("[DEBUG] Class map changed: ", globalClassMap);
   },
-  placeholder: 'Choose a classification map...'
+  placeholder: "Choose a classification map...",
 });
 classificationPanel.add(classificationSelect);
 
 // Site Selection Items
 var siteSelectorPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(siteSelectorPanel);
-var siteSelectorLabel = ui.Label('Site Selection');
-siteSelectorLabel.style().set({fontSize: '20px'});
+var siteSelectorLabel = ui.Label("Site Selection");
+siteSelectorLabel.style().set({ fontSize: "20px" });
 siteSelectorPanel.add(siteSelectorLabel);
 
 var siteSelectorDropdown = ui.Select({
   items: Object.keys(sites),
-  onChange: function(key) {
+  onChange: function (key) {
     // Update global selected site variable
     globalSite = sites[key];
-    
+
     // Move and zoom preview map
     var location = globalSite.location.coordinates();
     var zoom = globalSite.zoom;
-    Map.setCenter(ee.Number(location.get(0)).getInfo(), ee.Number(location.get(1)).getInfo(), zoom);
+    Map.setCenter(
+      ee.Number(location.get(0)).getInfo(),
+      ee.Number(location.get(1)).getInfo(),
+      zoom
+    );
   },
-  placeholder: "Choose a site..."
+  placeholder: "Choose a site...",
 });
 siteSelectorPanel.add(siteSelectorDropdown);
 
 // Run Panel Items
 var runPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(runPanel);
 
-var runPanelLabel = ui.Label('Processing');
-runPanelLabel.style().set({fontSize: '20px'});
+var runPanelLabel = ui.Label("Processing");
+runPanelLabel.style().set({ fontSize: "20px" });
 runPanel.add(runPanelLabel);
 
 var runProcessingButton = ui.Button({
-  label: 'Run Processing',
-  onClick: function() {
+  label: "Run Processing",
+  onClick: function () {
     runProcessing();
-  }
+  },
 });
 runPanel.add(runProcessingButton);
 
 // Preview Panel Items
 var previewOptionsPanel = ui.Panel({
-  layout: ui.Panel.Layout.flow('vertical')
+  layout: ui.Panel.Layout.flow("vertical"),
 });
 mainPanel.add(previewOptionsPanel);
 
-var previewPanelLabel = ui.Label('Preview Options');
-previewPanelLabel.style().set({fontSize: '20px'});
+var previewPanelLabel = ui.Label("Preview Options");
+previewPanelLabel.style().set({ fontSize: "20px" });
 previewOptionsPanel.add(previewPanelLabel);
 
 var indexSelectorDropdown = ui.Select({
   items: Object.keys(indices),
-  onChange: function(key) {
+  onChange: function (key) {
     globalIndex = key;
     print("[DEBUG] Preview index changed by user: ", globalIndex);
 
@@ -239,63 +246,81 @@ var indexSelectorDropdown = ui.Select({
       showIndexOutput();
     }
   },
-  placeholder: "Choose an index preview layer..."
+  placeholder: "Choose an index preview layer...",
 });
 previewOptionsPanel.add(indexSelectorDropdown);
 
 // ### UI Data Manipulation Elements ###
 
 // Run this function on a change of the dateSlider.
-var showMosaic = function() {
-  var baseImageCollection = ee.ImageCollection('COPERNICUS/S2_SR').filterBounds(focusArea);
+var showMosaic = function () {
+  var baseImageCollection = ee
+    .ImageCollection("COPERNICUS/S2_SR")
+    .filterBounds(focusArea);
 
   // Re-run filters, etc.
-  primaryImageCollection = baseImageCollection.filter(ee.Filter.date(prefs.date_range.start(), prefs.date_range.end())).filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', prefs.ccLimit));
+  primaryImageCollection = baseImageCollection
+    .filter(ee.Filter.date(prefs.date_range.start(), prefs.date_range.end()))
+    .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", prefs.ccLimit));
   print("[DEBUG] Post-filter ImageCollection: ", primaryImageCollection);
-  
+
   // Add additional filters SPECIFICALLY for preview layer purposes
   var previewRange = internalProcessingState.previewState.tciPreviewDateRange;
-  var previewImageCollection = baseImageCollection.filter(ee.Filter.date(previewRange.start(), previewRange.end()));
-  print("[DEBUG] Post-filter PREVIEW ImageCollection: ", previewImageCollection);
+  var previewImageCollection = baseImageCollection.filter(
+    ee.Filter.date(previewRange.start(), previewRange.end())
+  );
+  print(
+    "[DEBUG] Post-filter PREVIEW ImageCollection: ",
+    previewImageCollection
+  );
 
   // Compute Mosaic
   var mosaic = previewImageCollection.mosaic();
-  
+
   // Display Preview Layer
-  var visParams = {bands: [prefs.preview_red, prefs.preview_green, prefs.preview_blue], max: 256};
-  var layer = ui.Map.Layer(mosaic, visParams, 'TCI Preview');
+  var visParams = {
+    bands: [prefs.preview_red, prefs.preview_green, prefs.preview_blue],
+    max: 256,
+  };
+  var layer = ui.Map.Layer(mosaic, visParams, "TCI Preview");
   Map.layers().set(0, layer);
 };
 
-var changeStart = function(range) {
+var changeStart = function (range) {
   prefs.date_range = ee.DateRange(range.start(), prefs.date_range.end());
-  
+
   showMosaic();
-  
+
   print("[DEBUG] Start filter date changed: ", prefs.date_range);
 
   // Check if preview date range is within chosen range
-  if (internalProcessingState.previewState.tciPreviewDateRange === null || !range.contains(internalProcessingState.previewState.tciPreviewDateRange)) {
+  if (
+    internalProcessingState.previewState.tciPreviewDateRange === null ||
+    !range.contains(internalProcessingState.previewState.tciPreviewDateRange)
+  ) {
     internalProcessingState.previewState.tciPreviewDateRange = range;
     previewDateSlider.setValue(range.end());
   }
-}
+};
 
-var changeEnd = function(range) {
+var changeEnd = function (range) {
   prefs.date_range = ee.DateRange(prefs.date_range.start(), range.end());
-  
+
   showMosaic();
-  
+
   print("[DEBUG] End filter date changed: ", prefs.date_range);
 
   // Check if preview date range is within chosen range
-  if (internalProcessingState.previewState.tciPreviewDateRange === null || !range.contains(internalProcessingState.previewState.tciPreviewDateRange)) {
+  if (
+    internalProcessingState.previewState.tciPreviewDateRange === null ||
+    !range.contains(internalProcessingState.previewState.tciPreviewDateRange)
+  ) {
     internalProcessingState.previewState.tciPreviewDateRange = range;
     previewDateSlider.setValue(range.end());
   }
-}
+};
 
-var changePreviewDateRange = function(range) {
+var changePreviewDateRange = function (range) {
   print("[DEBUG] Preview date range changed: ", range);
 
   // Save new range to internal state
@@ -303,146 +328,157 @@ var changePreviewDateRange = function(range) {
 
   // Show the preview mosaic and re-run filters
   showMosaic();
-}
+};
 
 // Asynchronously compute the date filter range and show the date filter slider.
-var startDateRange = prefs.date_range.evaluate(function(range) {
+var startDateRange = prefs.date_range.evaluate(function (range) {
   var startDateSlider = ui.DateSlider({
-    start: range['dates'][0],
-    end: range['dates'][1],
+    start: range["dates"][0],
+    end: range["dates"][1],
     value: null,
     period: 1,
-    style: {stretch: 'horizontal'},
-    onChange: changeStart
+    style: { stretch: "horizontal" },
+    onChange: changeStart,
   });
-  startDatePanel.add(startDateSlider.setValue(range['dates'][0]));
+  startDatePanel.add(startDateSlider.setValue(range["dates"][0]));
 });
 
-var endDateRange = prefs.date_range.evaluate(function(range) {
+var endDateRange = prefs.date_range.evaluate(function (range) {
   var endDateSlider = ui.DateSlider({
-    start: range['dates'][0],
-    end: range['dates'][1],
+    start: range["dates"][0],
+    end: range["dates"][1],
     value: null,
     period: 1,
-    style: {stretch: 'horizontal'},
-    onChange: changeEnd
+    style: { stretch: "horizontal" },
+    onChange: changeEnd,
   });
   endDatePanel.add(endDateSlider.setValue(globalNow));
 });
 
-var previewDateRange = prefs.date_range.evaluate(function(range) {
+var previewDateRange = prefs.date_range.evaluate(function (range) {
   var previewDateSlider = ui.DateSlider({
-    start: range['dates'][0],
-    end: range['dates'][1],
+    start: range["dates"][0],
+    end: range["dates"][1],
     value: null,
     period: prefs.previewDateSliderGranularity,
-    style: {stretch: 'horizontal'},
-    onChange: changePreviewDateRange
+    style: { stretch: "horizontal" },
+    onChange: changePreviewDateRange,
   });
   previewOptionsPanel.add(previewDateSlider.setValue(globalNow));
 });
 
-var showIndexOutput = function() {
+var showIndexOutput = function () {
   // Compute Preview Mosaic
   var mosaic = internalProcessingState.indexOutputs.mosaic();
-  
+
   // Display Preview Layer
-  var visParams = {bands: [globalIndex], max: 1, min: -1};
-  var layer = ui.Map.Layer(mosaic, visParams, 'Index Preview');
+  var visParams = { bands: [globalIndex], max: 1, min: -1 };
+  var layer = ui.Map.Layer(mosaic, visParams, "Index Preview");
   Map.layers().set(1, layer);
-}
+};
 
 // ### Configure and Add UI ###
 // ui.root.clear();
 ui.root.add(mainPanel);
 
 // ### Run Processing ###
-var runProcessing = function() {
-  
+var runProcessing = function () {
   // Mask Clouds
   var cloudMasked = primaryImageCollection.map(IndicesFunc.maskS2clouds);
-  
+
   // [DEBUG] Print cloudMasked ImageCollection
   print("[DEBUG] Cloud Masked ImageCollection: ", cloudMasked);
-  
+
   // Calculate Indices
-  var indexOutputs = cloudMasked.map(IndicesFunc.applyNDVI).map(IndicesFunc.applyNDAVI).map(IndicesFunc.applyWAVI).select(["NDVI", "NDAVI", "WAVI"]);
-  
+  var indexOutputs = cloudMasked
+    .map(IndicesFunc.applyNDVI)
+    .map(IndicesFunc.applyNDAVI)
+    .map(IndicesFunc.applyWAVI)
+    .select(["NDVI", "NDAVI", "WAVI"]);
+
   // [DEBUG] Print output of calculations
   print("[DEBUG] Calculated Index Outputs: ", indexOutputs);
-  
+
   // Vectorize classification raster
   var classMapAsInt = globalClassMap.uint16();
   var vectorClassFeatureCollection = classMapAsInt.reduceToVectors({
-    geometry: globalSite.geometry,  // Use the user-selected site geometry
-    scale: 10,                      // Set according to sensor for now
+    geometry: globalSite.geometry, // Use the user-selected site geometry
+    scale: 10, // Set according to sensor for now
     geometryType: "polygon",
-    eightConnected: true,           // Diagonally-connected pixels should be considered adjacent
-    labelProperty: "class",         // The values of the class raster represent the pixel's class
+    eightConnected: true, // Diagonally-connected pixels should be considered adjacent
+    labelProperty: "class", // The values of the class raster represent the pixel's class
     crs: classMapAsInt.projection(),
-    maxPixels: 10e8                 // Allow reduction of more pixels than is allowed by default
+    maxPixels: 10e8, // Allow reduction of more pixels than is allowed by default
   });
-  print("[DEBUG] Calculated vector classification FeatureCollection: ", vectorClassFeatureCollection);
+  print(
+    "[DEBUG] Calculated vector classification FeatureCollection: ",
+    vectorClassFeatureCollection
+  );
 
   // Separate vectors into class-specific FeatureCollections
   for (var classKey in classificationTable) {
-    var classValueObject = classificationTable[classKey];  // For ease of using the value object
+    var classValueObject = classificationTable[classKey]; // For ease of using the value object
 
     // Specifically want to find all features with a class property matching the mapping value
     var associatedFeatures = vectorClassFeatureCollection.filter(
-      ee.Filter.eq('class', classValueObject.mapping));
+      ee.Filter.eq("class", classValueObject.mapping)
+    );
 
     // Add filtered FeatureCollection to classification table
     classValueObject.vectors = associatedFeatures;
 
     // [DEBUG] Print out features associated with the class
-    print("[DEBUG] Associated Features for ", classKey, classValueObject.vectors);
+    print(
+      "[DEBUG] Associated Features for ",
+      classKey,
+      classValueObject.vectors
+    );
   }
 
   // Save processing complete state
   internalProcessingState.processingHasBeenRun = true;
 
   // ### Create and Display Charts ###
-  
+
   // Create a color table for the charts & visualization
   var color_table = {
-    0: {color: "1abc9c"},
-    1: {color: "e74c3c"},
-    2: {color: "3498db"},
-    3: {color: "9b59b6"},
-    4: {color: "34495e"},
-    5: {color: "f1c40f"},
-    6: {color: "e67e22"},
-    7: {color: "2ecc71"}
-  }
-  
+    0: { color: "1abc9c" },
+    1: { color: "e74c3c" },
+    2: { color: "3498db" },
+    3: { color: "9b59b6" },
+    4: { color: "34495e" },
+    5: { color: "f1c40f" },
+    6: { color: "e67e22" },
+    7: { color: "2ecc71" },
+  };
+
   // Reduce and Plot
   // Test Chart for "by index" charts
   var testChart = ui.Chart.image.series({
     imageCollection: indexOutputs,
     region: globalSite.geometry,
     reducer: ee.Reducer.mean(),
-    xProperty: 'system:time_start'
-  })
-  
-  testChart.setChartType('ScatterChart')
+    xProperty: "system:time_start",
+  });
+
+  testChart.setChartType("ScatterChart");
   testChart.setOptions({
-    title: '[TESTING] Index Calculation Outputs',
+    title: "[TESTING] Index Calculation Outputs",
     vAxis: {
-      title: 'Index Value'
+      title: "Index Value",
     },
     hAxis: {
-      title: "Time"
+      title: "Time",
     },
     lineWidth: 1,
     pointSize: 3,
-    series: color_table
-  })
-  print(testChart)
+    series: color_table,
+  });
+  print(testChart);
 
   // Save indexOutput in global state
   internalProcessingState.indexOutputs = indexOutputs;
 
   // Show index outputs
   showIndexOutput();
-}
+};
