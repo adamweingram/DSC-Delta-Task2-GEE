@@ -328,6 +328,11 @@ var changePreviewDateRange = function (range) {
 
   // Show the preview mosaic and re-run filters
   showMosaic();
+
+  // If processing has already been run, show the index preview too
+  if (internalProcessingState.processingHasBeenRun) {
+    showIndexOutput();
+  }
 };
 
 // Asynchronously compute the date filter range and show the date filter slider.
@@ -368,8 +373,16 @@ var previewDateRange = prefs.date_range.evaluate(function (range) {
 });
 
 var showIndexOutput = function () {
+  // Filter to align with preview date slider
+  var filtered = internalProcessingState.indexOutputs.filter(
+    ee.Filter.date(
+      internalProcessingState.previewState.tciPreviewDateRange.start(),
+      internalProcessingState.previewState.tciPreviewDateRange.end()
+    )
+  );
+
   // Compute Preview Mosaic
-  var mosaic = internalProcessingState.indexOutputs.mosaic();
+  var mosaic = filtered.mosaic();
 
   // Display Preview Layer
   var visParams = { bands: [globalIndex], max: 1, min: -1 };
