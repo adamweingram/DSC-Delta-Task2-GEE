@@ -110,7 +110,7 @@ var globalIndex = null;
 // [TODO] Migrate all global variables to internal processing state object
 var internalProcessingState = {
   previewState: {
-    tciPreviewDateRange: prefs.date_range,
+    rgbPreviewDateRange: prefs.date_range,
   },
   processingHasBeenRun: false,
   indexOutputs: null,
@@ -259,8 +259,8 @@ var showMosaic = function () {
     .filterBounds(focusArea)
     .filter(
       ee.Filter.date(
-        internalProcessingState.previewState.tciPreviewDateRange.start(),
-        internalProcessingState.previewState.tciPreviewDateRange.end()
+        internalProcessingState.previewState.rgbPreviewDateRange.start(),
+        internalProcessingState.previewState.rgbPreviewDateRange.end()
       )
     );
 
@@ -277,7 +277,7 @@ var showMosaic = function () {
     bands: [prefs.preview_red, prefs.preview_green, prefs.preview_blue],
     max: 256,
   };
-  var layer = ui.Map.Layer(mosaic, visParams, "TCI Preview");
+  var layer = ui.Map.Layer(mosaic, visParams, "RGB Preview");
   Map.layers().set(0, layer);
 };
 
@@ -290,10 +290,10 @@ var changeStart = function (range) {
 
   // Check if preview date range is within chosen range
   if (
-    internalProcessingState.previewState.tciPreviewDateRange === null ||
-    !range.contains(internalProcessingState.previewState.tciPreviewDateRange)
+    internalProcessingState.previewState.rgbPreviewDateRange === null ||
+    !range.contains(internalProcessingState.previewState.rgbPreviewDateRange)
   ) {
-    internalProcessingState.previewState.tciPreviewDateRange = range;
+    internalProcessingState.previewState.rgbPreviewDateRange = range;
     previewDateSlider.setValue(range.end());
   }
 };
@@ -307,10 +307,10 @@ var changeEnd = function (range) {
 
   // Check if preview date range is within chosen range
   if (
-    internalProcessingState.previewState.tciPreviewDateRange === null ||
-    !range.contains(internalProcessingState.previewState.tciPreviewDateRange)
+    internalProcessingState.previewState.rgbPreviewDateRange === null ||
+    !range.contains(internalProcessingState.previewState.rgbPreviewDateRange)
   ) {
-    internalProcessingState.previewState.tciPreviewDateRange = range;
+    internalProcessingState.previewState.rgbPreviewDateRange = range;
     previewDateSlider.setValue(range.end());
   }
 };
@@ -319,7 +319,7 @@ var changePreviewDateRange = function (range) {
   print("[DEBUG] Preview date range changed: ", range);
 
   // Save new range to internal state
-  internalProcessingState.previewState.tciPreviewDateRange = range;
+  internalProcessingState.previewState.rgbPreviewDateRange = range;
 
   // Show the preview mosaic and re-run filters
   showMosaic();
@@ -371,8 +371,8 @@ var showIndexOutput = function () {
   // Filter to align with preview date slider
   var filtered = internalProcessingState.indexOutputs.filter(
     ee.Filter.date(
-      internalProcessingState.previewState.tciPreviewDateRange.start(),
-      internalProcessingState.previewState.tciPreviewDateRange.end()
+      internalProcessingState.previewState.rgbPreviewDateRange.start(),
+      internalProcessingState.previewState.rgbPreviewDateRange.end()
     )
   );
 
