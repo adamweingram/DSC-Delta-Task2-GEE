@@ -51,7 +51,8 @@ var prefs = {
   preview_blue: "TCI_B",
   l_correction_factor: 0.5,
   date_range: ee.DateRange(globalStart, globalEnd),
-  previewDateSliderGranularity: 10, // Aligns with Sentinel-2 "max" revisit time (~10 days)
+  previewDateSliderGranularity: 10,  // Aligns with Sentinel-2 "max" revisit time (~10 days)
+  filterCloudCoverForPreviewImagery: false,  // Whether or not the preview imagery is filtered by cloud cover too
 };
 
 var classificationTable = {
@@ -263,6 +264,13 @@ var showMosaic = function () {
         internalProcessingState.previewState.rgbPreviewDateRange.end()
       )
     );
+
+  // Filter by cloud cover percentage only if preferences are set to do so
+  if (prefs.filterCloudCoverForPreviewImagery) {
+    previewImageCollection = previewImageCollection.filter(
+      ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", prefs.ccLimit)
+    );
+  }
 
   print(
     "[DEBUG] Post-filter PREVIEW ImageCollection: ",
