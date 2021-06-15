@@ -101,9 +101,18 @@ var sites = {
 var globalSite = null;
 
 var indices = {
-  NDVI: {},
-  NDAVI: {},
-  WAVI: {},
+  NDVI: {
+    name: "NDVI",
+    applyFunction: IndicesFunc.applyNDVI
+  },
+  NDAVI: {
+    name: "NDAVI",
+    applyFunction: IndicesFunc.applyNDAVI
+  },
+  WAVI: {
+    name: "WAVI",
+    applyFunction: IndicesFunc.applyWAVI
+  },
 };
 var globalIndex = null;
 
@@ -413,11 +422,18 @@ var runProcessing = function () {
   print("[DEBUG] Cloud Masked ImageCollection: ", cloudMasked);
 
   // Calculate Indices
-  var indexOutputs = cloudMasked
-    .map(IndicesFunc.applyNDVI)
-    .map(IndicesFunc.applyNDAVI)
-    .map(IndicesFunc.applyWAVI)
-    .select(["NDVI", "NDAVI", "WAVI"]);
+  var indexOutputs = cloudMasked;
+  var bandSelections = [];
+  for (var prop in indices) {
+    // Calculate associated index function
+    indexOutputs = indexOutputs.map(indices[prop].applyFunction);
+
+    // Add band name to list of band names to filter later
+    bandSelections.push(indices[prop].name);
+  }
+
+  // Filter only calculated index bands
+  indexOutputs = indexOutputs.select(bandSelections);
 
   // [DEBUG] Print output of calculations
   print("[DEBUG] Calculated Index Outputs: ", indexOutputs);
